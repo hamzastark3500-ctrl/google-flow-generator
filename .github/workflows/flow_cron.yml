@@ -1,0 +1,42 @@
+name: Google Flow Auto Image Generator & Bulk Downloader
+
+on:
+  workflow_dispatch: # Allows 1-click manual trigger from GitHub UI
+  schedule:
+    - cron: '0 6,18 * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  generate_images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 🎭 Install Playwright & Chromium
+        run: |
+          pip install playwright
+          playwright install chromium --with-deps
+
+      - name: 🎨 Run Google Flow Generator
+        env:
+          FLOW_COOKIES: ${{ secrets.FLOW_COOKIES }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python flow_generator.py --products 2 --images-per-product 2
+
+      - name: 💾 Commit & Save Generated Images to Repository
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Google Flow AI Bot"
+          git add generated_pins/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "🎨 Auto-generated new product pins [skip ci]" && git push)
